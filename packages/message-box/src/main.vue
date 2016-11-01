@@ -1,6 +1,6 @@
 <template>
   <div class="el-message-box__wrapper">
-    <transition name="msgbox-bounce">
+    <transition name="msgbox-fade">
       <div class="el-message-box" v-show="value">
         <div class="el-message-box__header" v-if="title !== ''">
           <div class="el-message-box__title">{{ title }}</div>
@@ -16,7 +16,7 @@
         </div>
         <div class="el-message-box__btns">
           <el-button :class="[ cancelButtonClasses ]" v-show="showCancelButton" @click.native="handleAction('cancel')">{{ cancelButtonText }}</el-button>
-          <el-button :class="[ confirmButtonClasses ]" v-show="showConfirmButton" @click.native="handleAction('confirm')" type="primary">{{ confirmButtonText }}</el-button>
+          <el-button ref="confirm" :class="[ confirmButtonClasses ]" v-show="showConfirmButton" @click.native="handleAction('confirm')">{{ confirmButtonText }}</el-button>
         </div>
       </div>
     </transition>
@@ -24,8 +24,12 @@
 </template>
 
 <script type="text/babel">
-  let CONFIRM_TEXT = '确定';
-  let CANCEL_TEXT = '取消';
+  import Popup from 'vue-popup';
+  import ElInput from 'element-ui/packages/input';
+  import ElButton from 'element-ui/packages/button';
+  import { addClass, removeClass } from 'wind-dom/src/class';
+  import { $t } from 'element-ui/src/locale';
+
   let typeMap = {
     success: 'circle-check',
     info: 'information',
@@ -33,14 +37,14 @@
     error: 'circle-cross'
   };
 
-  import Popup from 'vue-popup';
-  import ElInput from 'packages/input/index.js';
-
   export default {
-    mixins: [ Popup ],
+    mixins: [Popup],
 
     props: {
       modal: {
+        default: true
+      },
+      lockScroll: {
         default: true
       },
       showClose: {
@@ -56,7 +60,8 @@
     },
 
     components: {
-      ElInput
+      ElInput,
+      ElButton
     },
 
     computed: {
@@ -65,10 +70,10 @@
       },
 
       confirmButtonClasses() {
-        return `el-button el-button-primary ${ this.confirmButtonClass }`;
+        return `el-button--primary ${ this.confirmButtonClass }`;
       },
       cancelButtonClasses() {
-        return `el-button el-button-default ${ this.cancelButtonClass }`;
+        return `${ this.cancelButtonClass }`;
       }
     },
 
@@ -79,14 +84,16 @@
 
         this.onClose && this.onClose();
 
-        setTimeout(() => {
-          if (this.modal && this.bodyOverflow !== 'hidden') {
-            document.body.style.overflow = this.bodyOverflow;
-            document.body.style.paddingRight = this.bodyPaddingRight;
-          }
-          this.bodyOverflow = null;
-          this.bodyPaddingRight = null;
-        }, 200);
+        if (this.lockScroll) {
+          setTimeout(() => {
+            if (this.modal && this.bodyOverflow !== 'hidden') {
+              document.body.style.overflow = this.bodyOverflow;
+              document.body.style.paddingRight = this.bodyPaddingRight;
+            }
+            this.bodyOverflow = null;
+            this.bodyPaddingRight = null;
+          }, 200);
+        }
         this.opened = false;
 
         if (!this.transition) {
@@ -107,16 +114,16 @@
         if (this.$type === 'prompt') {
           var inputPattern = this.inputPattern;
           if (inputPattern && !inputPattern.test(this.inputValue || '')) {
-            this.editorErrorMessage = this.inputErrorMessage || '输入的数据不合法!';
-            this.$refs.input.$el.querySelector('input').classList.add('invalid');
+            this.editorErrorMessage = this.inputErrorMessage || $t('el.messagebox.error');
+            addClass(this.$refs.input.$el.querySelector('input'), 'invalid');
             return false;
           }
           var inputValidator = this.inputValidator;
           if (typeof inputValidator === 'function') {
             var validateResult = inputValidator(this.inputValue);
             if (validateResult === false) {
-              this.editorErrorMessage = this.inputErrorMessage || '输入的数据不合法!';
-              this.$refs.input.$el.querySelector('input').classList.add('invalid');
+              this.editorErrorMessage = this.inputErrorMessage || $t('el.messagebox.error');
+              addClass(this.$refs.input.$el.querySelector('input'), 'invalid');
               return false;
             }
             if (typeof validateResult === 'string') {
@@ -126,25 +133,34 @@
           }
         }
         this.editorErrorMessage = '';
-        this.$refs.input.$el.querySelector('input').classList.remove('invalid');
+        removeClass(this.$refs.input.$el.querySelector('input'), 'invalid');
         return true;
       }
     },
 
     watch: {
-      inputValue() {
-        if (this.$type === 'prompt') {
+      inputValue(val) {
+        if (this.$type === 'prompt' && val !== null) {
           this.validate();
         }
       },
 
       value(val) {
-        if (val && this.$type === 'prompt') {
+        if (this.$type === 'alert' || this.$type === 'confirm') {
+          this.$nextTick(() => {
+            this.$refs.confirm.$el.focus();
+          });
+        }
+        if (this.$type !== 'prompt') return;
+        if (val) {
           setTimeout(() => {
             if (this.$refs.input && this.$refs.input.$el) {
               this.$refs.input.$el.querySelector('input').focus();
             }
           }, 500);
+        } else {
+          this.editorErrorMessage = '';
+          removeClass(this.$refs.input.$el.querySelector('input'), 'invalid');
         }
       }
     },
@@ -162,8 +178,8 @@
         inputErrorMessage: '',
         showConfirmButton: true,
         showCancelButton: false,
-        confirmButtonText: CONFIRM_TEXT,
-        cancelButtonText: CANCEL_TEXT,
+        confirmButtonText: $t('el.messagebox.confirm'),
+        cancelButtonText: $t('el.messagebox.cancel'),
         confirmButtonClass: '',
         confirmButtonDisabled: false,
         cancelButtonClass: '',

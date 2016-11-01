@@ -11,17 +11,16 @@
     <input
       class="el-date-editor__editor"
       :readonly="readonly"
-      :type="editorType"
+      type="text"
       :placeholder="placeholder"
       @focus="handleFocus"
       @blur="handleBlur"
       @keydown="handleKeydown"
-      @keyup="handleKeyup"
       ref="reference"
       v-model.lazy="visualValue" />
 
     <span
-      @click="togglePicker()"
+      @click="pickerVisible = !pickerVisible"
       class="el-date-editor__trigger el-icon"
       :class="[triggerClass]"
       v-if="haveTrigger">
@@ -31,12 +30,22 @@
 
 <script>
 import Vue from 'vue';
-import Clickoutside from 'main/utils/clickoutside';
-import { merge, formatDate, parseDate, getWeekNumber } from './util';
-import Popper from 'main/utils/popper';
-import emitter from 'main/mixins/emitter';
+import Clickoutside from 'element-ui/src/utils/clickoutside';
+import { formatDate, parseDate, getWeekNumber } from './util';
+import Popper from 'element-ui/src/utils/vue-popper';
+import Emitter from 'element-ui/src/mixins/emitter';
 
-const FUNCTION_KEYS = [13, 16, 17, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40];
+const NewPopper = {
+  props: {
+    appendToBody: Popper.props.appendToBody,
+    offset: Popper.props.offset,
+    boundariesPadding: Popper.props.boundariesPadding
+  },
+  methods: Popper.methods,
+  data: Popper.data,
+  beforeDestroy: Popper.beforeDestroy
+};
+
 const RANGE_SEPARATOR = ' - ';
 const DEFAULT_FORMATS = {
   date: 'yyyy-MM-dd',
@@ -184,7 +193,7 @@ const PLACEMENT_MAP = {
 };
 
 export default {
-  mixins: [emitter],
+  mixins: [Emitter, NewPopper],
 
   props: {
     format: String,
@@ -199,9 +208,7 @@ export default {
     pickerOptions: {}
   },
 
-  directives: {
-    Clickoutside
-  },
+  directives: { Clickoutside },
 
   data() {
     return {
@@ -211,7 +218,7 @@ export default {
 
   watch: {
     pickerVisible(val) {
-      val === true ? this.showPicker() : this.hidePicker();
+      val ? this.showPicker() : this.hidePicker();
     },
     value(val) {
       this.dispatch('form-item', 'el.form.change');
@@ -268,17 +275,22 @@ export default {
           const parsedValue = parser(value, this.format || DEFAULT_FORMATS[type]);
 
           if (parsedValue) {
-            this.$emit('input', parsedValue);
+            this.picker.value = parsedValue;
           }
           return;
         }
-        this.$emit('input', value);
+        this.picker.value = value;
       }
-    },
-
-    editorType() {
-      return 'text';
     }
+  },
+
+  created() {
+    // vue-popper
+    this.options = {
+      boundariesPadding: 0,
+      gpuAcceleration: false
+    };
+    this.placement = PLACEMENT_MAP[this.align] || PLACEMENT_MAP.left;
   },
 
   methods: {
@@ -289,10 +301,8 @@ export default {
     handleFocus() {
       const type = this.type;
 
-      if (HAVE_TRIGGER_TYPES.indexOf(type) !== -1) {
-        if (!this.pickerVisible) {
-          this.showPicker();
-        }
+      if (HAVE_TRIGGER_TYPES.indexOf(type) !== -1 && !this.pickerVisible) {
+        this.pickerVisible = true;
       }
       this.$emit('focus', this);
     },
@@ -304,97 +314,42 @@ export default {
 
     handleKeydown(event) {
       const keyCode = event.keyCode;
-      let selectionStart = event.target.selectionStart;
-      let selectionEnd = event.target.selectionEnd;
-      let length = event.target.value.length;
+      const target = event.target;
+      let selectionStart = target.selectionStart;
+      let selectionEnd = target.selectionEnd;
+      let length = target.value.length;
 
-      if (keyCode === 27) {
+      // tab
+      if (keyCode === 9) {
+        this.pickerVisible = false;
+      // enter
+      } else if (keyCode === 13) {
         this.pickerVisible = this.picker.visible = false;
+        this.visualValue = target.value;
+        target.blur();
       // left
       } else if (keyCode === 37) {
         event.preventDefault();
 
         if (selectionEnd === length && selectionStart === length) {
-          event.target.selectionStart = length - 2;
+          target.selectionStart = length - 2;
         } else if (selectionStart >= 3) {
-          event.target.selectionStart -= 3;
+          target.selectionStart -= 3;
         } else {
-          event.target.selectionStart = 0;
+          target.selectionStart = 0;
         }
-        event.target.selectionEnd = event.target.selectionStart + 2;
+        target.selectionEnd = target.selectionStart + 2;
       // right
       } else if (keyCode === 39) {
         event.preventDefault();
         if (selectionEnd === 0 && selectionStart === 0) {
-          event.target.selectionEnd = 2;
+          target.selectionEnd = 2;
         } else if (selectionEnd <= length - 3) {
-          event.target.selectionEnd += 3;
+          target.selectionEnd += 3;
         } else {
-          event.target.selectionEnd = length;
+          target.selectionEnd = length;
         }
-        event.target.selectionStart = event.target.selectionEnd - 2;
-      }
-    },
-
-    handleKeyup(event) {
-      const keyCode = event.keyCode;
-      if (FUNCTION_KEYS.indexOf(keyCode) > -1) return;
-      if (!(this.picker && this.pickerVisible)) return;
-      const selectionStart = event.target.selectionStart;
-      const value = event.target.value;
-      const type = this.type;
-      const parser = (
-        TYPE_VALUE_RESOLVER_MAP[type] ||
-        TYPE_VALUE_RESOLVER_MAP['default']
-      ).parser;
-      const parsedValue = parser(value, this.format || DEFAULT_FORMATS[type]);
-
-      if (!parsedValue) return;
-      this.picker.value = parsedValue;
-      this.$emit('input', parsedValue);
-
-      if (this.type.indexOf('date') > -1) return;
-
-      setTimeout(_ => {
-        let start = selectionStart;
-        let end = selectionStart;
-        const offset = 2;
-
-        if (selectionStart === 9) {
-          start += offset;
-        }
-        if (selectionStart >= 12) {
-          if (selectionStart % 3 === 0) {
-            start += 1;
-            end = start;
-          } else if (selectionStart % 3 === 2) {
-            end = start + offset;
-          }
-        } else {
-          if (selectionStart % 3 === 1) {
-            start += 1;
-            end = start;
-          } else if (selectionStart % 3 === 0) {
-            end = start + offset;
-          }
-        }
-
-        event.target.selectionStart = start;
-        event.target.selectionEnd = end;
-      }, 0);
-    },
-
-    togglePicker() {
-      !this.pickerVisible ? this.showPicker() : this.hidePicker();
-    },
-
-    destroyPopper() {
-      if (this.popper) {
-        this.resetTransformOrigin(this.popper);
-        setTimeout(() => {
-          this.popper && this.popper.destroy();
-          this.popper = null;
-        }, 300);
+        target.selectionStart = target.selectionEnd - 2;
       }
     },
 
@@ -409,9 +364,9 @@ export default {
     showPicker() {
       if (!this.picker) {
         this.panel.defaultValue = this.value;
-        this.picker = new Vue(merge({
-          el: document.createElement('div')
-        }, this.panel));
+        this.picker = new Vue(this.panel).$mount(document.createElement('div'));
+        this.popperElm = this.picker.$el;
+        this.picker.width = this.$refs.reference.getBoundingClientRect().width;
         this.picker.showTime = this.type === 'datetime' || this.type === 'datetimerange';
         this.picker.selectionMode = this.selectionMode;
         if (this.format) {
@@ -447,11 +402,12 @@ export default {
         this.pickerVisible = this.picker.visible = true;
         this.picker.resetView && this.picker.resetView();
 
+        this.picker.$on('dodestroy', this.doDestroy);
         this.picker.$on('pick', (date, visible = false) => {
           this.$emit('input', date);
 
           if (!visible) {
-            this.pickerVisible = this.picker.visible = false;
+            this.pickerVisible = this.picker.visible = !this.picker.visible;
           }
           this.picker.resetView && this.picker.resetView();
         });
@@ -466,23 +422,7 @@ export default {
         this.pickerVisible = this.picker.visible = true;
       }
 
-      this.$nextTick(() => {
-        if (this.popper) {
-          this.popper.update();
-          return;
-        }
-
-        this.popper = new Popper(this.$refs.reference, this.picker.$el, {
-          gpuAcceleration: false,
-          placement: PLACEMENT_MAP[this.align] || PLACEMENT_MAP.left,
-          boundariesPadding: 0,
-          forceAbsolute: true
-        });
-
-        this.popper.onCreate(popper => {
-          this.resetTransformOrigin(popper);
-        });
-      });
+      this.updatePopper();
 
       if (this.value instanceof Date) {
         this.picker.date = new Date(this.value.getTime());
@@ -492,23 +432,9 @@ export default {
       }
 
       this.$nextTick(() => {
-        if (this.type.indexOf('time') !== -1) {
-          this.picker.focusEditor && this.picker.focusEditor('hours');
-        }
         this.picker.ajustScrollTop && this.picker.ajustScrollTop();
       });
-    },
-
-    resetTransformOrigin(popper) {
-      let placementMap = { top: 'bottom', bottom: 'top' };
-      let placement = popper._popper.getAttribute('x-placement').split('-')[0];
-      let origin = placementMap[placement];
-      popper._popper.style.transformOrigin = `center ${ origin }`;
     }
-  },
-
-  beforeDestroy() {
-    this.popper && this.popper.destroy();
   }
 };
 </script>

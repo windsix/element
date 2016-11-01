@@ -3,12 +3,12 @@ import navConfig from './nav.config.json';
 const registerRoute = (config) => {
   let route = [{
     path: '/component',
-    redirect: '/component/quickstart',
+    redirect: '/component/installation',
     component: require('./pages/component.vue'),
     children: []
   }];
   function addRoute(page) {
-    const component = page.path === '/changelog' ? require('./pages/changelog.vue') : require(`./docs${page.path}.md`);
+    const component = page.path === '/changelog' ? require('./pages/changelog.vue') : require(`./docs/zh-cn${page.path}.md`);
     let child = {
       path: page.path.slice(1),
       meta: {
@@ -74,7 +74,7 @@ route.route = route.route.concat([indexRoute, guideRoute, resourceRoute]);
 
 route.route.push({
   path: '*',
-  component: require('./docs/home.md')
+  component: require('./docs/zh-cn/home.md')
 });
 
 export const navs = route.navs;

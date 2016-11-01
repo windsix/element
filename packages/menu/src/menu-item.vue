@@ -1,16 +1,20 @@
 <script>
-  import menuMixin from './menu-mixin';
+  import Menu from './menu-mixin';
   module.exports = {
-    name: 'el-menu-item',
+    name: 'ElMenuItem',
 
-    componentName: 'menu-item',
+    componentName: 'ElMenuItem',
 
-    mixins: [menuMixin],
+    mixins: [Menu],
 
     props: {
       index: {
         type: String,
         required: true
+      },
+      route: {
+        type: Object,
+        required: false
       },
       disabled: {
         type: Boolean,
@@ -24,7 +28,12 @@
     },
     methods: {
       handleClick() {
-        this.rootMenu.handleSelect(this.index, this.indexPath);
+        this.rootMenu.handleSelect(
+          this.index,
+          this.indexPath,
+          this.route || this.index,
+          this
+        );
       }
     },
     created() {

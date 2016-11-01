@@ -17,7 +17,7 @@
 </template>
 <script>
   import AsyncValidator from 'async-validator';
-  import emitter from 'main/mixins/emitter';
+  import emitter from 'element-ui/src/mixins/emitter';
 
   export default {
     name: 'ElFormItem',
@@ -78,13 +78,13 @@
         validateDisabled: false,
         validating: false,
         validator: {},
-        isRequired: false
+        isRequired: false,
+        initialValue: null
       };
     },
     methods: {
       validate(trigger, cb) {
         var rules = this.getFilteredRule(trigger);
-
         if (!rules || rules.length === 0) {
           cb && cb();
           return true;
@@ -118,18 +118,18 @@
         if (Array.isArray(value) && value.length > 0) {
           this.validateDisabled = true;
           model[this.prop] = [];
-        } else if (typeof value === 'string' && value !== '') {
+        } else if (value) {
           this.validateDisabled = true;
-          model[this.prop] = '';
-        } else if (typeof value === 'number') {
-          this.validateDisabled = true;
-          model[this.prop] = 0;
+          model[this.prop] = this.initialValue;
         }
       },
       getRules() {
-        if (!this.prop) { return []; }
-        var rules = this.rules || (this.form.rules ? this.form.rules[this.prop] : []);
-        return Array.isArray(rules) ? rules : [rules];
+        var formRules = this.form.rules;
+        var selfRuels = this.rules;
+
+        formRules = formRules ? formRules[this.prop] : [];
+
+        return [].concat(selfRuels || formRules || []);
       },
       getFilteredRule(trigger) {
         var rules = this.getRules();
@@ -148,24 +148,35 @@
         }
 
         this.validate('change');
+      },
+      getInitialValue() {
+        var value = this.form.model[this.prop];
+        if (value === undefined) {
+          return value;
+        } else {
+          return JSON.parse(JSON.stringify(value));
+        }
       }
     },
     mounted() {
-      var rules = this.getRules();
-
-      rules.every(rule => {
-        if (rule.required) {
-          this.isRequired = true;
-          return false;
-        }
-      });
-
       if (this.prop) {
         this.dispatch('form', 'el.form.addField', [this]);
-      }
 
-      this.$on('el.form.blur', this.onFieldBlur);
-      this.$on('el.form.change', this.onFieldChange);
+        this.initialValue = this.getInitialValue();
+
+        let rules = this.getRules();
+
+        if (rules.length) {
+          rules.every(rule => {
+            if (rule.required) {
+              this.isRequired = true;
+              return false;
+            }
+          });
+          this.$on('el.form.blur', this.onFieldBlur);
+          this.$on('el.form.change', this.onFieldChange);
+        }
+      }
     },
     beforeDestroy() {
       this.dispatch('form', 'el.form.removeField', [this]);

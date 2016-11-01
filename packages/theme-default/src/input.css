@@ -19,7 +19,7 @@
       border-radius: 4px;
       transition: var(--border-transition-base);
       outline: none;
-      font-size: inherit;
+      line-height: normal;
 
       &::placeholder {
         color: var(--input-placeholder-color);
@@ -36,10 +36,19 @@
 
     @e icon {
       position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translate(0, -50%);
+      width: 35px;
+      height: 100%;
+      right: 0;
+      text-align: center;
       color: var(--input-icon-color);
+
+      &:after {
+        content: '';
+        height: 100%;
+        width: 0;
+        display: inline-block;
+        vertical-align: middle;
+      }
 
       & + .el-input__inner {
         padding-right: 35px;
@@ -69,27 +78,26 @@
     .el-icon-loading {
       animation: validating-rotating 1s linear infinite;
     }
-  }
+    @m large {
+      font-size: var(--input-large-font-size);
 
-  @b input-large {
-    font-size: var(--input-large-font-size);
-
-    & .el-input__inner {
-      height: var(--input-large-height);
+      & .el-input__inner {
+        height: var(--input-large-height);
+      }
     }
-  }
-  @b input-small {
-    font-size: var(--input-small-font-size);
+    @m small {
+      font-size: var(--input-small-font-size);
 
-    & .el-input__inner {
-      height: var(--input-small-height);
+      & .el-input__inner {
+        height: var(--input-small-height);
+      }
     }
-  }
-  @b input-mini {
-    font-size: var(--input-mini-font-size);
+    @m mini {
+      font-size: var(--input-mini-font-size);
 
-    & .el-input__inner {
-      height: var(--input-mini-height);
+      & .el-input__inner {
+        height: var(--input-mini-height);
+      }
     }
   }
 
@@ -161,11 +169,10 @@
     @e inner {
       display: block;
       resize: vertical;
-      padding: 8px 5px;
-      line-height: normal;
+      padding: 5px 7px;
+      line-height: 1.5;
       box-sizing: border-box;
       width: 100%;
-      min-height: 88px;
       font-size: var(--font-size-base);
       color: var(--input-color);
       background-color: #fff;

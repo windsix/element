@@ -3,6 +3,7 @@
     <transition :name="transition" @after-leave="doDestroy">
       <div
         class="el-popover"
+        :class="[popperClass]"
         ref="popper"
         v-show="showPopper"
         :style="{ width: width + 'px' }">
@@ -15,15 +16,8 @@
 </template>
 
 <script>
-import Popper from 'main/utils/vue-popper';
-import Vue from 'vue';
+import Popper from 'element-ui/src/utils/vue-popper';
 import { on, off } from 'wind-dom/src/event';
-
-Vue.directive('popover', {
-  bind(el, binding, vnode) {
-    vnode.context.$refs[binding.arg].$refs.reference = el;
-  }
-});
 
 export default {
   name: 'el-popover',
@@ -39,6 +33,7 @@ export default {
     title: String,
     content: String,
     reference: {},
+    popperClass: String,
     width: {},
     visibleArrow: {
       default: true
@@ -46,65 +41,70 @@ export default {
     transition: {
       type: String,
       default: 'fade-in-linear'
-    },
-    options: {
-      default() {
-        return {
-          gpuAcceleration: false
-        };
-      }
     }
   },
 
   mounted() {
-    setTimeout(() => {
-      let _timer;
-      const reference = this.reference || this.$refs.reference || this.$slots.reference[0].elm;
+    let reference = this.reference || this.$refs.reference;
+    const popper = this.popper || this.$refs.popper;
 
-      this.$nextTick(() => {
-        if (this.trigger === 'click') {
-          on(reference, 'click', () => { this.showPopper = !this.showPopper; });
-          on(document, 'click', (e) => {
-            if (!this.$el ||
-                !reference ||
-                this.$el.contains(e.target) ||
-                reference.contains(e.target)) return;
-            this.showPopper = false;
-          });
-        } else if (this.trigger === 'hover') {
-          on(reference, 'mouseenter', () => {
-            this.showPopper = true;
-            clearTimeout(_timer);
-          });
-          on(reference, 'mouseleave', () => {
-            _timer = setTimeout(() => {
-              this.showPopper = false;
-            }, 200);
-          });
-        } else {
-          if ([].slice.call(reference.children).length) {
-            const children = reference.childNodes;
+    if (!reference && this.$slots.reference && this.$slots.reference[0]) {
+      reference = this.referenceElm = this.$slots.reference[0].elm;
+    }
+    if (this.trigger === 'click') {
+      on(reference, 'click', () => { this.showPopper = !this.showPopper; });
+      on(document, 'click', (e) => {
+        if (!this.$el ||
+            !reference ||
+            this.$el.contains(e.target) ||
+            reference.contains(e.target) ||
+            !popper ||
+            popper.contains(e.target)) return;
+        this.showPopper = false;
+      });
+    } else if (this.trigger === 'hover') {
+      on(reference, 'mouseenter', this.handleMouseEnter);
+      on(popper, 'mouseenter', this.handleMouseEnter);
+      on(reference, 'mouseleave', this.handleMouseLeave);
+      on(popper, 'mouseleave', this.handleMouseLeave);
+    } else {
+      let found = false;
 
-            for (let i = 0; i < children.length; i++) {
-              if (children[i].nodeName === 'INPUT') {
-                on(children[i], 'focus', () => { this.showPopper = true; });
-                on(children[i], 'blur', () => { this.showPopper = false; });
-                break;
-              }
-            }
-          } else if (
-              reference.nodeName === 'INPUT' ||
-              reference.nodeName === 'TEXTAREA'
-          ) {
-            on(reference, 'focus', () => { this.showPopper = true; });
-            on(reference, 'blur', () => { this.showPopper = false; });
-          } else {
-            on(reference, 'mousedown', () => { this.showPopper = true; });
-            on(reference, 'mouseup', () => { this.showPopper = false; });
+      if ([].slice.call(reference.children).length) {
+        const children = reference.childNodes;
+        const len = children.length;
+        for (let i = 0; i < len; i++) {
+          if (children[i].nodeName === 'INPUT' ||
+              children[i].nodeName === 'TEXTAREA') {
+            on(children[i], 'focus', () => { this.showPopper = true; });
+            on(children[i], 'blur', () => { this.showPopper = false; });
+            found = true;
+            break;
           }
         }
-      });
-    }, 100);
+      }
+      if (found) return;
+      if (reference.nodeName === 'INPUT' ||
+        reference.nodeName === 'TEXTAREA') {
+        on(reference, 'focus', () => { this.showPopper = true; });
+        on(reference, 'blur', () => { this.showPopper = false; });
+      } else {
+        on(reference, 'mousedown', () => { this.showPopper = true; });
+        on(reference, 'mouseup', () => { this.showPopper = false; });
+      }
+    }
+  },
+
+  methods: {
+    handleMouseEnter() {
+      this.showPopper = true;
+      clearTimeout(this._timer);
+    },
+    handleMouseLeave() {
+      this._timer = setTimeout(() => {
+        this.showPopper = false;
+      }, 200);
+    }
   },
 
   destroyed() {

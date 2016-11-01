@@ -1,4 +1,4 @@
-.PHONY: dist
+.PHONY: dist test
 default: help
 
 # build all theme
@@ -6,16 +6,16 @@ build-theme:
 	npm run build:theme
 
 install:
-	npm run bootstrap
+	npm install
 
 install-cn:
-	npm run bootstrap --registry=http://registry.npm.taobao.org
+	npm install --registry=http://registry.npm.taobao.org
 
 dev:
 	npm run dev
 
 new:
-	node bin/new.js $(filter-out $@,$(MAKECMDGOALS))
+	node build/bin/new.js $(filter-out $@,$(MAKECMDGOALS))
 
 dist: install
 	npm run dist
@@ -31,6 +31,9 @@ pub:
 
 pub-all:
 	npm run pub:all
+
+test:
+	npm run test:watch
 
 help:
 	@echo "   \033[35mmake\033[0m \033[1m命令使用说明\033[0m"

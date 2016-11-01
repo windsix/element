@@ -16,12 +16,13 @@ const uppercamelcase = require('uppercamelcase');
 const componentname = process.argv[2];
 const chineseName = process.argv[3] || componentname;
 const ComponentName = uppercamelcase(componentname);
-const PackagePath = path.resolve(__dirname, '../packages', componentname);
+const PackagePath = path.resolve(__dirname, '../../packages', componentname);
 const Files = [
   {
     filename: 'index.js',
     content: `const ${ComponentName} = require('./src/main');
 
+/* istanbul ignore next */
 ${ComponentName}.install = function(Vue) {
   Vue.component(${ComponentName}.name, ${ComponentName});
 };
@@ -41,21 +42,9 @@ cooking.set({
   template: false,
   format: 'umd',
   moduleName: 'El${ComponentName}',
-  extends: ['vue2']
-});
-
-cooking.add('resolve.alias', {
-  'main': path.join(__dirname, '../../src'),
-  'packages': path.join(__dirname, '../../packages')
-});
-
-cooking.add('externals', {
-  vue: {
-    root: 'Vue',
-    commonjs: 'vue',
-    commonjs2: 'vue',
-    amd: 'vue'
-  }
+  extends: ['vue2'],
+  alias: config.alias,
+  externals: { vue: config.vue }
 });
 
 module.exports = cooking.resolve();`
@@ -91,7 +80,7 @@ export default {
 </script>`
   },
   {
-    filename: path.join('../../examples/docs/', `${componentname}.md`),
+    filename: path.join('../../examples/docs/zh-cn', `${componentname}.md`),
     content: `## ${chineseName}`
   }
 ];
@@ -102,7 +91,7 @@ if (componentsFile[componentname]) {
   console.error(`${componentname} 已存在.`);
   process.exit(1);
 }
-componentsFile[componentname] = [`./packages/${componentname}/index.js`];
+componentsFile[componentname] = `./packages/${componentname}/index.js`;
 fileSave(path.join(__dirname, '../../components.json'))
   .write(JSON.stringify(componentsFile, null, '  '), 'utf8')
   .end('\n');
@@ -116,7 +105,8 @@ Files.forEach(file => {
 
 // 添加到 nav.config.json
 const navConfigFile = require('../../examples/nav.config.json');
-navConfigFile[navConfigFile.length - 1].list.push({
+
+navConfigFile[2].groups[navConfigFile[2].groups.length - 1].list.push({
   path: `/${componentname}`,
   name: `${chineseName} (${componentname})`,
   title: componentname === chineseName

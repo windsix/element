@@ -1,5 +1,8 @@
 <template>
-  <div class="el-select" :class="{ 'is-multiple': multiple, 'is-small': size === 'small' }">
+  <div
+    class="el-select"
+    v-clickoutside="handleClose"
+    :class="{ 'is-multiple': multiple, 'is-small': size === 'small' }">
     <div class="el-select__tags" v-if="multiple" @click.stop="toggleMenu" ref="tags" :style="{ 'max-width': inputWidth - 32 + 'px' }">
       <transition-group @after-leave="resetInputHeight">
         <el-tag
@@ -14,6 +17,7 @@
       <input
         type="text"
         class="el-select__input"
+        @focus="visible = true"
         @keyup="managePlaceholder"
         @keydown="resetInputState"
         @keydown.down.prevent="navigateOptions('next')"
@@ -24,7 +28,7 @@
         v-model="query"
         :debounce="remote ? 300 : 0"
         v-if="filterable"
-        :style="{ width: inputLength + 'px' }"
+        :style="{ width: inputLength + 'px', 'max-width': inputWidth - 42 + 'px' }"
         ref="input">
     </div>
     <el-input
@@ -44,32 +48,35 @@
       @keydown.native.tab="visible = false"
       @mouseenter.native="inputHovering = true"
       @mouseleave.native="inputHovering = false"
-      :icon="iconClass"
-      v-element-clickoutside="handleClose">
+      :icon="iconClass">
     </el-input>
-    <transition name="md-fade-bottom">
+    <transition name="md-fade-bottom" @after-leave="doDestroy">
       <el-select-menu
         ref="popper"
-        v-show="visible && nodataText !== false">
+        v-show="visible && emptyText !== false">
         <ul class="el-select-dropdown__list" v-show="options.length > 0 && filteredOptionsCount > 0 && !loading">
           <slot></slot>
         </ul>
-        <p class="el-select-dropdown__nodata" v-if="nodataText">{{ nodataText }}</p>
+        <p class="el-select-dropdown__empty" v-if="emptyText">{{ emptyText }}</p>
       </el-select-menu>
     </transition>
   </div>
 </template>
 
 <script type="text/babel">
-  import emitter from 'main/mixins/emitter';
-  import ElInput from 'packages/input/index.js';
-  import ElSelectMenu from 'packages/select-dropdown/index.js';
-  import ElTag from 'packages/tag/index.js';
+  import Emitter from 'element-ui/src/mixins/emitter';
+  import Locale from 'element-ui/src/mixins/locale';
+  import ElInput from 'element-ui/packages/input';
+  import ElSelectMenu from './select-dropdown.vue';
+  import ElTag from 'element-ui/packages/tag';
   import debounce from 'throttle-debounce/debounce';
-  import Clickoutside from 'main/utils/clickoutside';
+  import Clickoutside from 'element-ui/src/utils/clickoutside';
+  import { addClass, removeClass, hasClass } from 'wind-dom/src/class';
+  import { addResizeListener, removeResizeListener } from 'element-ui/src/utils/resize-event';
+  import { $t } from 'element-ui/src/locale';
 
   export default {
-    mixins: [emitter],
+    mixins: [Emitter, Locale],
 
     name: 'ElSelect',
 
@@ -92,28 +99,28 @@
         if (icon) {
           if (criteria) {
             icon.addEventListener('click', this.deleteSelected);
-            icon.classList.add('is-show-close');
+            addClass(icon, 'is-show-close');
           } else {
             icon.removeEventListener('click', this.deleteSelected);
-            icon.classList.remove('is-show-close');
+            removeClass(icon, 'is-show-close');
           }
         }
         return criteria;
       },
 
-      nodataText() {
+      emptyText() {
         if (this.loading) {
-          return '加载中';
+          return this.$t('el.select.loading');
         } else {
           if (this.voidRemoteQuery) {
             this.voidRemoteQuery = false;
             return false;
           }
-          if (this.filteredOptionsCount === 0) {
-            return '无匹配数据';
+          if (this.filterable && this.filteredOptionsCount === 0) {
+            return this.$t('el.select.noMatch');
           }
           if (this.options.length === 0) {
-            return '无数据';
+            return this.$t('el.select.noData');
           }
         }
         return null;
@@ -126,9 +133,7 @@
       ElTag
     },
 
-    directives: {
-      ElementClickoutside: Clickoutside
-    },
+    directives: { Clickoutside },
 
     props: {
       name: String,
@@ -144,7 +149,7 @@
       multiple: Boolean,
       placeholder: {
         type: String,
-        default: '请选择'
+        default: $t('el.select.placeholder')
       }
     },
 
@@ -213,6 +218,11 @@
 
       selected(val) {
         if (this.multiple) {
+          if (this.selected.length > 0) {
+            this.currentPlaceholder = '';
+          } else {
+            this.currentPlaceholder = this.cachedPlaceHolder;
+          }
           if (this.selectedInit) {
             this.selectedInit = false;
             return;
@@ -222,11 +232,6 @@
 
           this.$emit('input', result);
           this.$emit('change', result);
-          if (this.selected.length > 0) {
-            this.currentPlaceholder = '';
-          } else {
-            this.currentPlaceholder = this.cachedPlaceHolder;
-          }
           this.$nextTick(() => {
             this.resetInputHeight();
           });
@@ -269,7 +274,7 @@
         if (!val) {
           this.$refs.reference.$el.querySelector('input').blur();
           if (this.$el.querySelector('.el-input__icon')) {
-            this.$el.querySelector('.el-input__icon').classList.remove('is-reverse');
+            removeClass(this.$el.querySelector('.el-input__icon'), 'is-reverse');
           }
           this.broadcast('select-dropdown', 'destroyPopper');
           if (this.$refs.input) {
@@ -285,8 +290,9 @@
             }
           }
         } else {
-          if (this.$el.querySelector('.el-input__icon')) {
-            this.$el.querySelector('.el-input__icon').classList.add('is-reverse');
+          let icon = this.$el.querySelector('.el-input__icon');
+          if (icon && !hasClass(icon, 'el-icon-circle-close')) {
+            addClass(this.$el.querySelector('.el-input__icon'), 'is-reverse');
           }
           this.broadcast('select-dropdown', 'updatePopper');
           if (this.filterable) {
@@ -315,6 +321,10 @@
     },
 
     methods: {
+      doDestroy() {
+        this.$refs.popper.doDestroy();
+      },
+
       handleClose() {
         this.visible = false;
       },
@@ -339,10 +349,10 @@
         }
       },
 
-      addOptionToValue(option) {
+      addOptionToValue(option, init) {
         if (this.multiple) {
           if (this.selected.indexOf(option) === -1 && (this.remote ? this.value.indexOf(option.value) === -1 : true)) {
-            this.selectedInit = false;
+            this.selectedInit = !!init;
             this.selected.push(option);
             this.resetHoverIndex();
           }
@@ -361,7 +371,7 @@
 
       resetInputState(e) {
         if (e.keyCode !== 8) this.toggleLastOptionHitState(false);
-        this.inputLength = this.$refs.input.value.length * 12 + 20;
+        this.inputLength = this.$refs.input.value.length * 15 + 20;
       },
 
       resetInputHeight() {
@@ -431,7 +441,9 @@
               this.hoverIndex = 0;
             }
             this.resetScrollTop();
-            if (this.options[this.hoverIndex].disabled === true || !this.options[this.hoverIndex].queryPassed) {
+            if (this.options[this.hoverIndex].disabled === true ||
+              this.options[this.hoverIndex].groupDisabled === true ||
+              !this.options[this.hoverIndex].queryPassed) {
               this.navigateOptions('next');
             }
           }
@@ -441,7 +453,9 @@
               this.hoverIndex = this.options.length - 1;
             }
             this.resetScrollTop();
-            if (this.options[this.hoverIndex].disabled === true || !this.options[this.hoverIndex].queryPassed) {
+            if (this.options[this.hoverIndex].disabled === true ||
+              this.options[this.hoverIndex].groupDisabled === true ||
+              !this.options[this.hoverIndex].queryPassed) {
               this.navigateOptions('prev');
             }
           }
@@ -485,7 +499,7 @@
       },
 
       onInputChange() {
-        if (this.filterable) {
+        if (this.filterable && this.selectedLabel !== this.value) {
           this.query = this.selectedLabel;
         }
       },
@@ -498,6 +512,10 @@
           this.options.splice(index, 1);
         }
         this.broadcast('option', 'resetIndex');
+      },
+
+      resetInputWidth() {
+        this.inputWidth = this.$refs.reference.$el.getBoundingClientRect().width;
       }
     },
 
@@ -521,11 +539,24 @@
     },
 
     mounted() {
+      addResizeListener(this.$el, this.resetInputWidth);
+      if (this.remote && this.multiple && Array.isArray(this.value)) {
+        this.selected = this.options.reduce((prev, curr) => {
+          return this.value.indexOf(curr.value) > -1 ? prev.concat(curr) : prev;
+        }, []);
+        this.$nextTick(() => {
+          this.resetInputHeight();
+        });
+      }
       this.$nextTick(() => {
         if (this.$refs.reference.$el) {
           this.inputWidth = this.$refs.reference.$el.getBoundingClientRect().width;
         }
       });
+    },
+
+    destroyed() {
+      if (this.resetInputWidth) removeResizeListener(this.$el, this.resetInputWidth);
     }
   };
 </script>

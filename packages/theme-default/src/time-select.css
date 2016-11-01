@@ -1,11 +1,10 @@
-@import "../../date-picker/src/css/picker.css";
-@import "../../date-picker/src/css/date-picker.css";
-@import "../../date-picker/src/css/vars.css";
+@import "./date-picker/picker.css";
+@import "./date-picker/date-picker.css";
+@import "./date-picker/vars.css";
 
 .time-select {
-  min-width: 200px;
   margin: 5px 0;
-  width: 100%;
+  min-width: 0;
 }
 
 .time-select .el-picker-panel__content {

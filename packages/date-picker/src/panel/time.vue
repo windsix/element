@@ -1,7 +1,8 @@
 <template>
-  <transition name="md-fade-bottom">
+  <transition name="md-fade-bottom" @after-leave="$emit('dodestroy')">
     <div
       v-show="currentVisible"
+      :style="{width: width + 'px'}"
       class="el-time-panel">
       <div class="el-time-panel__content">
         <time-spinner
@@ -18,36 +19,44 @@
         <button
           type="button"
           class="el-time-panel__btn cancel"
-          @click="handleCancel()">取消</button>
+          @click="handleCancel">{{ $t('el.datepicker.cancel') }}</button>
         <button
           type="button"
           class="el-time-panel__btn confirm"
-          @click="handleConfirm()">确定</button>
+          @click="handleConfirm()">{{ $t('el.datepicker.confirm') }}</button>
       </div>
     </div>
   </transition>
 </template>
 
-<script type="text/ecmascript-6">
+<script type="text/babel">
   import { limitRange } from '../util';
-  import Vue from 'vue';
+  import Locale from 'element-ui/src/mixins/locale';
 
   export default {
+    mixins: [Locale],
+
     components: {
       TimeSpinner: require('../basic/time-spinner')
     },
 
     props: {
+      pickerWidth: {},
       date: {
-        default: new Date()
+        default() {
+          return new Date();
+        }
       },
-
       visible: Boolean
     },
 
     watch: {
       visible(val) {
         this.currentVisible = val;
+      },
+
+      pickerWidth(val) {
+        this.width = val;
       },
 
       value(newVal) {
@@ -58,10 +67,11 @@
           date = new Date();
         }
 
-        this.hours = date.getHours();
-        this.minutes = date.getMinutes();
-        this.seconds = date.getSeconds();
-        this.handleConfirm(true);
+        this.handleChange({
+          hours: date.getHours(),
+          minutes: date.getMinutes(),
+          seconds: date.getSeconds()
+        });
       },
 
       selectableRange(val) {
@@ -77,8 +87,9 @@
         minutes: 0,
         seconds: 0,
         selectableRange: [],
-        currentDate: this.$options.defaultValue || this.date,
-        currentVisible: this.visible
+        currentDate: this.$options.defaultValue || this.date || new Date(),
+        currentVisible: this.visible || false,
+        width: this.pickerWidth || 0
       };
     },
 
@@ -115,13 +126,9 @@
       },
 
       handleConfirm(visible = false, first) {
+        if (first) return;
         const date = new Date(limitRange(this.currentDate, this.selectableRange));
-
         this.$emit('pick', date, visible, first);
-      },
-
-      focusEditor(val) {
-        return this.$refs.spinner.focusEditor(val);
       },
 
       ajustScrollTop() {
@@ -130,9 +137,6 @@
     },
 
     created() {
-      !this.currentDate && Vue.set(this, 'currentDate', new Date());
-      !this.currentVisible && Vue.set(this, 'currentVisible', false);
-
       this.hours = this.currentDate.getHours();
       this.minutes = this.currentDate.getMinutes();
       this.seconds = this.currentDate.getSeconds();

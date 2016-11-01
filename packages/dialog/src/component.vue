@@ -1,7 +1,11 @@
 <template>
   <transition name="dialog-fade">
     <div class="el-dialog__wrapper" v-show="value" @click.self="handleWrapperClick">
-      <div class="el-dialog" :class="[sizeClass, customClass]" ref="dialog" :style="{ 'margin-bottom': size !== 'full' ? '50px' : '', 'top': size !== 'full' ? dynamicTop + 'px' : '0' }">
+      <div
+        class="el-dialog"
+        :class="[sizeClass, customClass]"
+        ref="dialog"
+        :style="style">
         <div class="el-dialog__header">
           <span class="el-dialog__title">{{title}}</span>
           <div class="el-dialog__headerbtn">
@@ -23,7 +27,7 @@
   export default {
     name: 'el-dialog',
 
-    mixins: [ Popup ],
+    mixins: [Popup],
 
     props: {
       title: {
@@ -32,6 +36,11 @@
       },
 
       modal: {
+        type: Boolean,
+        default: true
+      },
+
+      lockScroll: {
         type: Boolean,
         default: true
       },
@@ -54,13 +63,12 @@
       customClass: {
         type: String,
         default: ''
-      }
-    },
+      },
 
-    data() {
-      return {
-        dynamicTop: 0
-      };
+      top: {
+        type: String,
+        default: '15%'
+      }
     },
 
     watch: {
@@ -79,6 +87,9 @@
     computed: {
       sizeClass() {
         return `el-dialog--${ this.size }`;
+      },
+      style() {
+        return this.size === 'full' ? {} : { 'margin-bottom': '50px', 'top': this.top };
       }
     },
 
@@ -87,10 +98,6 @@
         if (this.closeOnClickModal) {
           this.$emit('input', false);
         }
-      },
-
-      resetTop() {
-        this.dynamicTop = Math.floor((window.innerHeight || document.documentElement.clientHeight) * 0.16);
       }
     },
 
@@ -99,12 +106,6 @@
         this.rendered = true;
         this.open();
       }
-      window.addEventListener('resize', this.resetTop);
-      this.resetTop();
-    },
-
-    beforeDestroy() {
-      window.removeEventListener('resize', this.resetTop);
     }
   };
 </script>

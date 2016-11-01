@@ -29,8 +29,7 @@
     watch: {
       activeName: {
         handler(val) {
-          var fisrtKey = this.$children[0] && this.$children[0].key || '1';
-          this.currentName = val || fisrtKey;
+          this.currentName = val;
         }
       },
 
@@ -51,17 +50,16 @@
         }
 
         if (tab.key === this.currentName) {
-          let deleteIndex = this.$children.indexOf(tab);
-          let nextChild = this.$children[deleteIndex + 1];
-          let prevChild = this.$children[deleteIndex - 1];
+          let nextChild = this.tabs[index];
+          let prevChild = this.tabs[index - 1];
 
           this.currentName = nextChild ? nextChild.key : prevChild ? prevChild.key : '-1';
         }
-        this.$emit('tab-remove', tab.key);
+        this.$emit('tab-remove', tab);
       },
       handleTabClick(tab, event) {
         this.currentName = tab.key;
-        this.$emit('tab-click', tab.key, event);
+        this.$emit('tab-click', tab, event);
       },
       calcBarStyle(firstRendering) {
         if (this.type || !this.$refs.tabs) return {};
@@ -90,10 +88,8 @@
       }
     },
     mounted() {
-      if (!this.currentName) {
-        var fisrtKey = this.$children[0] && this.$children[0].key || '1';
-        this.currentName = this.activeName || fisrtKey;
-      }
+      var fisrtKey = this.$children[0].key || '1';
+      this.currentName = this.activeName || fisrtKey;
       this.$children.forEach(tab => this.tabs.push(tab));
       this.$nextTick(() => this.calcBarStyle(true));
     }

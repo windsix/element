@@ -4,9 +4,10 @@
       :value="value"
       :disabled="disabled"
       :placeholder="placeholder"
-      :name='name'
-      @onchange="handleChange"
-      @onfocus="handleFocus"
+      :name="name"
+      :size="size"
+      @change="handleChange"
+      @focus="handleFocus"
       @keydown.up.native="highlight(highlightedIndex - 1)"
       @keydown.down.native="highlight(highlightedIndex + 1)"
       @keydown.enter.native="select(highlightedIndex)"
@@ -41,8 +42,8 @@
   </div>
 </template>
 <script>
-  import ElInput from 'packages/input/index.js';
-  import Clickoutside from 'main/utils/clickoutside';
+  import ElInput from 'element-ui/packages/input';
+  import Clickoutside from 'element-ui/src/utils/clickoutside';
 
   export default {
     name: 'ElAutocomplete',
@@ -55,6 +56,7 @@
       placeholder: String,
       disabled: Boolean,
       name: String,
+      size: String,
       value: String,
       fetchSuggestions: Function,
       triggerOnFocus: {
@@ -70,6 +72,9 @@
         loading: false,
         highlightedIndex: -1
       };
+    },
+    mounted() {
+      this.$parent.popperElm = this.popperElm = this.$el;
     },
     methods: {
       handleChange(value) {

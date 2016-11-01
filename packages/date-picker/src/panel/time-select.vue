@@ -1,22 +1,21 @@
 <template>
-  <transition name="md-fade-bottom">
+  <transition name="md-fade-bottom" @after-leave="$emit('dodestroy')">
     <div
       v-show="visible"
+      :style="{ width: width + 'px' }"
       class="el-picker-panel time-select">
       <div class="el-picker-panel__content">
         <div class="time-select-item"
           v-for="item in items"
           :class="{ selected: value === item.value, disabled: item.disabled }"
           :disabled="item.disabled"
-          @click="handleClick(item)">
-          {{ item.value }}
-        </div>
+          @click="handleClick(item)">{{ item.value }}</div>
       </div>
     </div>
   </transition>
 </template>
 
-<script type="text/ecmascript-6">
+<script type="text/babel">
   const parseTime = function(time) {
     const values = ('' || time).split(':');
     if (values.length >= 2) {
@@ -28,6 +27,7 @@
         minutes
       };
     }
+    /* istanbul ignore next */
     return null;
   };
 
@@ -91,7 +91,8 @@
         step: '00:30',
         value: '',
         visible: false,
-        minTime: ''
+        minTime: '',
+        width: 0
       };
     },
 

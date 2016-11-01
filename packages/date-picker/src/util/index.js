@@ -1,4 +1,4 @@
-import dateUtil from 'main/utils/date';
+import dateUtil from 'element-ui/src/utils/date';
 
 const newArray = function(start, end) {
   let result = [];
@@ -8,25 +8,15 @@ const newArray = function(start, end) {
   return result;
 };
 
-export const merge = function(target) {
-  for (var i = 1, j = arguments.length; i < j; i++) {
-    var source = arguments[i];
-    for (var prop in source) {
-      if (source.hasOwnProperty(prop)) {
-        var value = source[prop];
-        if (value !== undefined) {
-          target[prop] = value;
-        }
-      }
-    }
-  }
-
-  return target;
+export const toDate = function(date) {
+  date = new Date(date);
+  if (isNaN(date.getTime())) return null;
+  return date;
 };
 
 export const formatDate = function(date, format) {
-  date = new Date(date);
-  if (isNaN(date.getTime())) return '';
+  date = toDate(date);
+  if (!date) return '';
   return dateUtil.format(date, format || 'yyyy-MM-dd');
 };
 
@@ -166,19 +156,4 @@ export const limitRange = function(date, ranges) {
   });
 
   return date < minDate ? minDate : maxDate;
-};
-
-import i18n from './i18n';
-
-export const $t = function(path) {
-  const array = path.split('.');
-  let current = i18n;
-  for (var i = 0, j = array.length; i < j; i++) {
-    var property = array[i];
-    var value = current[property];
-    if (i === j - 1) return value;
-    if (!value) return '';
-    current = value;
-  }
-  return '';
 };
